@@ -28,6 +28,9 @@ function love.load()
     --use nearest neighbor filtering on upscaling and downscaling
     love.graphics.setDefaultFilter('nearest', 'nearest')
 
+    --set window title of application
+    love.window.setTitle("Vleeb")
+
     --Seed the RNG using current time
     math.randomseed(os.time())
 
