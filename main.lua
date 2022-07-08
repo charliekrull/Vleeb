@@ -1,6 +1,8 @@
 --Vleeb
 --It's Pong, but Volleyball instead of ping pong.
 
+--uses LOVE2D
+
 push = require 'push'
 
 Class = require "class"
@@ -37,16 +39,26 @@ function love.load()
     --retro font object
     smallFont = love.graphics.newFont('font.ttf', 8)
 
+    --Large font for congratulations messages
+    largeFont = love.graphics.newFont('font.ttf', 16)
+
     --larger font for displaying the score
     scoreFont = love.graphics.newFont('font.ttf', 32)
 
     --set LOVE2D's active font to the smallFont object
     love.graphics.setFont(smallFont)
 
+    sounds = {
+        ['paddle_hit'] = love.audio.newSource('sounds/paddle_hit.wav', 'static'),
+        ['score'] = love.audio.newSource('sounds/score.wav', 'static'),
+        ['wall_hit'] = love.audio.newSource('sounds/wall_hit.wav', 'static')
+    }
+
+
     --initialize virtual resolution
     push:setupScreen(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT, {
         fullscreen = false,
-        resizable = false,
+        resizable = true,
         vsync = true
     })
 
@@ -73,6 +85,12 @@ function love.load()
 end
 
 --[[
+    Called by LOVE whenever we resize the screen
+]]
+function love.resize(w, h)
+    push:resize(w,h)
+end
+--[[
     Runs every frame, with "dt" passed in, our delta in seconds since the last frame, which LOVE2D supplies us.
 ]]
 
@@ -85,17 +103,21 @@ function love.update(dt)
         else
             ball.dx = -math.random(100, 400)
         end
-    
+
     elseif gameState == 'play' then
         --detect ball collision with paddles, reversing dy if true and slightly increasing it
         if ball:collides(player1) then
             ball.dy = -ball.dy * 1.03
             ball.y = player1.y - 4
+
+            sounds['paddle_hit']:play()
         end
 
         if ball:collides(player2) then
             ball.dy = -ball.dy * 1.03
             ball.y = player2.y - 4
+
+            sounds['paddle_hit']:play()
         end
 
         --detect net collision. note that net is a Paddle that cannot be moved. reflects ball's dx when colliding
@@ -110,37 +132,63 @@ function love.update(dt)
             end
 
             ball.dx = -ball.dx
+
+            sounds['wall_hit']:play()
         end
 
         --detect screen boundary collisions and reverse relevant axis
         if ball.y <= 0 then
             ball.y = 0
             ball.dy = -ball.dy
+            sounds['wall_hit']:play()
         end
-
+        --player scores
         if ball.y >= VIRTUAL_HEIGHT - 4 then
+            sounds['score']:play()
+
             if ball.x < VIRTUAL_WIDTH / 2 then --player 2 scores
                 servingPlayer = 1
                 player2Score = player2Score + 1
+
+                --check if player2 wins
+                if player2Score == 5 then
+                    winningPlayer = 2
+                    gameState = 'done'
+                else
+                    gameState = 'serve'
+                end
+
                 ball:reset()
-                gameState = 'serve'
+                
 
             elseif ball.x >= VIRTUAL_WIDTH / 2 then --player 1 scores
                 servingPlayer = 2
                 player1Score = player1Score + 1
+
+                --check if player1 wins
+                if player1Score == 5 then
+                    winningPlayer = 1
+                    gameState = 'done'
+                else
+                    gameState = 'serve'
+                end
+                
                 ball:reset()
-                gameState = 'serve'
+                
             end
         end
 
         if ball.x >= VIRTUAL_WIDTH - 4 then
             ball.x = VIRTUAL_WIDTH - 4
             ball.dx = -ball.dx
+
+            sounds['wall_hit']:play()
         end
 
         if ball.x <= 0 then
             ball.x = 0
             ball.dx = -ball.dx
+            sounds['wall_hit']:play()
         end
 
     end
@@ -191,6 +239,24 @@ function love.keypressed(key)
             gameState = 'serve'
         elseif gameState == 'serve' then
             gameState = 'play'
+
+        elseif gameState == 'done' then
+            --restart the game if you press enter while in done state
+            gameState = 'serve'
+
+            ball:reset()
+
+            --reset scores to 0
+            player1Score = 0
+            player2Score = 0
+
+            if winningPlayer == 1 then
+                servingPlayer = 2
+            else
+                servingPlayer = 1
+            end
+            
+        
         
         else
             gameState = 'start'
@@ -213,14 +279,27 @@ function love.draw()
     
     --Title on court
     love.graphics.setFont(smallFont)
-    love.graphics.printf("VLEEB!", 0, 30, VIRTUAL_WIDTH, 'center')
-    if gameState == 'start' then
-        love.graphics.printf("Press Enter to Start!", 0, 45, VIRTUAL_WIDTH, 'center')    
     
+    if gameState == 'start' then
+        love.graphics.printf("Press Enter to Start!", 0, 10, VIRTUAL_WIDTH, 'center')    
+        love.graphics.printf("VLEEB!", 0, 30, VIRTUAL_WIDTH, 'center')
+
     elseif gameState == 'serve' then
-        serveString = "Player ".. tostring(servingPlayer)..' serve'
+        local serveString = "Player ".. tostring(servingPlayer)..' serve'
         love.graphics.printf(serveString, 0, 45, VIRTUAL_WIDTH, 'center')
+
+    elseif gameState == 'done' then
+        --UI messages
+        love.graphics.setFont(largeFont)
+        local winString = 'Player '.. tostring(winningPlayer) .. ' wins!'
+        love.graphics.printf(winString, 0, 10, VIRTUAL_WIDTH, 'center')
+
+        love.graphics.setFont(smallFont)
+        love.graphics.printf('Press Enter to restart!', 0, 30, VIRTUAL_WIDTH, 'center')
+    
     end
+
+
     --draw score to left and right side of screen
     love.graphics.setFont(scoreFont)
     love.graphics.print(tostring(player1Score), (VIRTUAL_WIDTH / 2) - 50, VIRTUAL_HEIGHT / 3)
