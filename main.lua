@@ -16,7 +16,7 @@ VIRTUAL_WIDTH = 432
 VIRTUAL_HEIGHT = 243
 
 --speed at which paddle moves, multiplied by dt in update
-PADDLE_SPEED = 200
+PADDLE_SPEED = 350
 
 
 
@@ -57,10 +57,15 @@ function love.load()
     --initialize paddles
     player1 = Paddle(50, VIRTUAL_HEIGHT - 20, 20, 5, 0, VIRTUAL_WIDTH/2)
     player2 = Paddle(VIRTUAL_WIDTH - 50, VIRTUAL_HEIGHT - 20, 20, 5, VIRTUAL_WIDTH/2, VIRTUAL_WIDTH)
+    net = Paddle((VIRTUAL_WIDTH / 2) - 2, VIRTUAL_HEIGHT - 20, 5, 20 )
     
 
     --initialize ball
-    ball = Ball(VIRTUAL_WIDTH / 2 - 2, VIRTUAL_HEIGHT / 2 - 2, 4, 4, 20)
+    ball = Ball(VIRTUAL_WIDTH / 2 - 2, VIRTUAL_HEIGHT / 2 - 2, 4, 4, 250)
+
+    --randomly determine first servingPlayer
+    servingPlayer = math.random(1, 2)
+
 
     --game state variable used to transition between different parts of the game
     --my very firstest one
@@ -72,6 +77,75 @@ end
 ]]
 
 function love.update(dt)
+    if gameState == 'serve' then
+        --before switching to play, initialize ball's velocity based on who scored
+        ball.dy = 0
+        if servingPlayer == 1 then
+            ball.dx = math.random(100, 400)
+        else
+            ball.dx = -math.random(100, 400)
+        end
+    
+    elseif gameState == 'play' then
+        --detect ball collision with paddles, reversing dy if true and slightly increasing it
+        if ball:collides(player1) then
+            ball.dy = -ball.dy * 1.03
+            ball.y = player1.y - 4
+        end
+
+        if ball:collides(player2) then
+            ball.dy = -ball.dy * 1.03
+            ball.y = player2.y - 4
+        end
+
+        --detect net collision. note that net is a Paddle that cannot be moved. reflects ball's dx when colliding
+        if ball:collides(net) then
+            if ball.dx < 0 then
+                ball.x = net.x + net.width
+            elseif ball.dx > 0 then
+                ball.x = net.x - 4
+
+            elseif ball.dx == 0 then
+                ball.dx = math.random(-19, 10)    
+            end
+
+            ball.dx = -ball.dx
+        end
+
+        --detect screen boundary collisions and reverse relevant axis
+        if ball.y <= 0 then
+            ball.y = 0
+            ball.dy = -ball.dy
+        end
+
+        if ball.y >= VIRTUAL_HEIGHT - 4 then
+            if ball.x < VIRTUAL_WIDTH / 2 then --player 2 scores
+                servingPlayer = 1
+                player2Score = player2Score + 1
+                ball:reset()
+                gameState = 'serve'
+
+            elseif ball.x >= VIRTUAL_WIDTH / 2 then --player 1 scores
+                servingPlayer = 2
+                player1Score = player1Score + 1
+                ball:reset()
+                gameState = 'serve'
+            end
+        end
+
+        if ball.x >= VIRTUAL_WIDTH - 4 then
+            ball.x = VIRTUAL_WIDTH - 4
+            ball.dx = -ball.dx
+        end
+
+        if ball.x <= 0 then
+            ball.x = 0
+            ball.dx = -ball.dx
+        end
+
+    end
+
+
     --player 1 movement
     if love.keyboard.isDown('a') then
         player1.dx = -PADDLE_SPEED
@@ -114,7 +188,10 @@ function love.keypressed(key)
         love.event.quit()
     elseif key == 'enter' or key == 'return' then
         if gameState == 'start' then
+            gameState = 'serve'
+        elseif gameState == 'serve' then
             gameState = 'play'
+        
         else
             gameState = 'start'
 
@@ -137,8 +214,13 @@ function love.draw()
     --Title on court
     love.graphics.setFont(smallFont)
     love.graphics.printf("VLEEB!", 0, 30, VIRTUAL_WIDTH, 'center')
-    love.graphics.printf(gameState, 0, 45, VIRTUAL_WIDTH, 'center')
-
+    if gameState == 'start' then
+        love.graphics.printf("Press Enter to Start!", 0, 45, VIRTUAL_WIDTH, 'center')    
+    
+    elseif gameState == 'serve' then
+        serveString = "Player ".. tostring(servingPlayer)..' serve'
+        love.graphics.printf(serveString, 0, 45, VIRTUAL_WIDTH, 'center')
+    end
     --draw score to left and right side of screen
     love.graphics.setFont(scoreFont)
     love.graphics.print(tostring(player1Score), (VIRTUAL_WIDTH / 2) - 50, VIRTUAL_HEIGHT / 3)
@@ -152,10 +234,21 @@ function love.draw()
     player2:render()
 
     --render net
-    love.graphics.rectangle('line', (VIRTUAL_WIDTH / 2) - 2, VIRTUAL_HEIGHT - 20, 5, 20)
+    net:render()
 
     --render ball
     ball:render()
 
+
+    --uncomment to display FPS
+    --displayFPS()
+
     push:apply('end') --stop rendering at virtual resolution
+end
+
+function displayFPS()
+    --simple FPS display across all states
+    love.graphics.setFont(smallFont)
+    love.graphics.setColor(0, 255, 0, 255)
+    love.graphics.print(tostring(love.timer.getFPS()).." FPS", 10, 10)
 end
