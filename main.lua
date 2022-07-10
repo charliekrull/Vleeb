@@ -66,7 +66,7 @@ function love.load()
     player1Score = 0
     player2Score = 0
 
-    --initialize paddles
+    --initialize paddles and net
     player1 = Paddle(50, VIRTUAL_HEIGHT - 20, 20, 5, 0, VIRTUAL_WIDTH/2)
     player2 = Paddle(VIRTUAL_WIDTH - 50, VIRTUAL_HEIGHT - 20, 20, 5, VIRTUAL_WIDTH/2, VIRTUAL_WIDTH)
     net = Paddle((VIRTUAL_WIDTH / 2) - 2, VIRTUAL_HEIGHT - 20, 5, 20 )
@@ -74,6 +74,8 @@ function love.load()
 
     --initialize ball
     ball = Ball(VIRTUAL_WIDTH / 2 - 2, VIRTUAL_HEIGHT / 2 - 2, 4, 4, 250)
+
+    humans = 1 --default to single-player
 
     --randomly determine first servingPlayer
     servingPlayer = math.random(1, 2)
@@ -195,25 +197,55 @@ function love.update(dt)
 
 
     --player 1 movement
-    if love.keyboard.isDown('a') then
-        player1.dx = -PADDLE_SPEED
+    if humans == 1 then --single player, either a/d or left/right will control the left paddle
+    
+        if love.keyboard.isDown('a') or love.keyboard.isDown('left') then
+            player1.dx = -PADDLE_SPEED
 
-    elseif love.keyboard.isDown('d') then
-        player1.dx = PADDLE_SPEED
+        elseif love.keyboard.isDown('d') or love.keyboard.isDown('right') then
+            player1.dx = PADDLE_SPEED
+            
+        else
+            player1.dx = 0
+        end
+
+        --AI will try to follow the ball when it's on the right
+        if ball.x > VIRTUAL_WIDTH / 2 then
+            if ball.x + ball.width < player2.x then
+                player2.dx = -PADDLE_SPEED
+
+            elseif ball.x > player2.x + player2.width then
+                player2.dx = PADDLE_SPEED
+
+            else
+                player2.dx = 0
+            end
+        end
+
+    elseif humans == 2 then --2 player, left is controlled by a/d, right is left/right
+
+        if love.keyboard.isDown('a') then
+            player1.dx = -PADDLE_SPEED
+
+        elseif love.keyboard.isDown('d') then
+            player1.dx = PADDLE_SPEED
+
+        else
+            player1.dx = 0
         
-    else
-        player1.dx = 0
-    end
+        end
 
     --player 2 movement
-    if love.keyboard.isDown('left') then
-        player2.dx = -PADDLE_SPEED
+        if love.keyboard.isDown('left') then
+            player2.dx = -PADDLE_SPEED
 
-    elseif love.keyboard.isDown('right') then
-        player2.dx = PADDLE_SPEED
+        elseif love.keyboard.isDown('right') then
+            player2.dx = PADDLE_SPEED
 
-    else
-        player2.dx = 0
+        else
+            player2.dx = 0
+        end
+
     end
 
     if gameState == 'play' then
@@ -222,6 +254,8 @@ function love.update(dt)
 
     player1:update(dt)
     player2:update(dt)
+
+
 
 end
 
@@ -242,7 +276,7 @@ function love.keypressed(key)
 
         elseif gameState == 'done' then
             --restart the game if you press enter while in done state
-            gameState = 'serve'
+            gameState = 'start'
 
             ball:reset()
 
@@ -264,6 +298,15 @@ function love.keypressed(key)
             --start ball's position in the middle of the screen
             ball:reset()
         end    
+    elseif key == 'up' then
+        if gameState == 'start' then
+            humans = 2
+        end
+
+    elseif key == 'down' then
+        if gameState == 'start' then
+            humans = 1
+        end
     
     end
 end
@@ -275,14 +318,31 @@ end
 function love.draw()
     push:apply('start') --begin rendering at virtual resolution
 
-    love.graphics.clear(0.16, 0.18, 0.20, 1.0) --clear the screen greeaayayey
+    love.graphics.clear(0.16, 0.18, 0.20, 1.0) --clear the screen gray
     
     --Title on court
     love.graphics.setFont(smallFont)
     
     if gameState == 'start' then
-        love.graphics.printf("Press Enter to Start!", 0, 10, VIRTUAL_WIDTH, 'center')    
-        love.graphics.printf("VLEEB!", 0, 30, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf("VLEEB!", 0, 10, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf("Use Up/Down arrows to select number of players", 0, 20, VIRTUAL_WIDTH, 'center' )
+        love.graphics.printf("Press Enter to Start!", 0, 30, VIRTUAL_WIDTH, 'center')    
+        
+        love.graphics.setFont(largeFont)
+        love.graphics.printf(tostring(humans) .. '-Player Game', 0, 50, VIRTUAL_WIDTH, 'center')
+
+        love.graphics.setFont(smallFont)
+        love.graphics.printf('Practice!', 0, VIRTUAL_HEIGHT - 75, VIRTUAL_WIDTH, 'center')
+        
+        if humans == 1 then
+            love.graphics.print("Left paddle moves with 'A' and 'D', or 'Left' and 'Right!", 10, VIRTUAL_HEIGHT - 50)
+
+        elseif humans == 2 then
+            love.graphics.print("Left Paddle moves with 'A' and 'D'!", 10, VIRTUAL_HEIGHT - 50)
+            love.graphics.print("Right Paddle moves with 'Left' and 'Right'", (VIRTUAL_WIDTH / 2) + 10, VIRTUAL_HEIGHT - 50)
+        
+        end
+        
 
     elseif gameState == 'serve' then
         local serveString = "Player ".. tostring(servingPlayer)..' serve'
