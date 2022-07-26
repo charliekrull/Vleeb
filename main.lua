@@ -67,9 +67,9 @@ function love.load()
     player2Score = 0
 
     --initialize paddles and net
-    player1 = Paddle(50, VIRTUAL_HEIGHT - 20, 20, 5, 0, VIRTUAL_WIDTH/2)
-    player2 = Paddle(VIRTUAL_WIDTH - 50, VIRTUAL_HEIGHT - 20, 20, 5, VIRTUAL_WIDTH/2, VIRTUAL_WIDTH)
-    net = Paddle((VIRTUAL_WIDTH / 2) - 2, VIRTUAL_HEIGHT - 20, 5, 20 )
+    player1 = Paddle(50, VIRTUAL_HEIGHT - 20, 30, 5, 0, VIRTUAL_WIDTH/2)
+    player2 = Paddle(VIRTUAL_WIDTH - 50, VIRTUAL_HEIGHT - 20, 30, 5, VIRTUAL_WIDTH/2, VIRTUAL_WIDTH)
+    net = Paddle((VIRTUAL_WIDTH / 2) - 2, VIRTUAL_HEIGHT - 20, 5, 30 )
     
 
     --initialize ball
@@ -101,9 +101,9 @@ function love.update(dt)
         --before switching to play, initialize ball's velocity based on who scored
         ball.dy = 0
         if servingPlayer == 1 then
-            ball.dx = math.random(100, 400)
+            ball.dx = math.random(150, 350)
         else
-            ball.dx = -math.random(100, 400)
+            ball.dx = -math.random(150, 350)
         end
 
     elseif gameState == 'play' then
